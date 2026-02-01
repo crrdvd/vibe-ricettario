@@ -378,7 +378,55 @@ async function showRecipe(id) {
 }
 
 function renderIngredients(recipe) {
-    elements.ingredientsList.innerHTML = recipe.subsections.map(subsection => `
+    // Check if this is a "Pane e Lievitati" recipe
+    const isBreadRecipe = recipe.category_name === 'Pane e Lievitati';
+    
+    // Calculate total weight (sum of ALL ingredient quantities, regardless of unit)
+    let totalWeight = 0;
+    let originalTotalWeight = 0;
+    recipe.subsections.forEach(sub => {
+        sub.ingredients.forEach(ing => {
+            const qty = parseFloat(ing.current_quantity) || 0;
+            const origQty = parseFloat(ing.original_quantity) || 0;
+            totalWeight += qty;
+            originalTotalWeight += origQty;
+        });
+    });
+    
+    // Round to 2 decimal places
+    totalWeight = Math.round(totalWeight * 100) / 100;
+    originalTotalWeight = Math.round(originalTotalWeight * 100) / 100;
+    
+    const totalWeightChanged = Math.abs(totalWeight - originalTotalWeight) > 0.001;
+    
+    // Build total weight HTML if it's a bread recipe
+    const totalWeightHtml = isBreadRecipe ? `
+        <div class="total-weight-container">
+            <div class="total-weight-item">
+                <div class="total-weight-label">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path>
+                        <line x1="16" y1="8" x2="2" y2="22"></line>
+                        <line x1="17.5" y1="15" x2="9" y2="15"></line>
+                    </svg>
+                    Peso Totale
+                </div>
+                <div class="total-weight-value">
+                    <input type="number" 
+                           value="${totalWeight}" 
+                           step="any"
+                           min="0"
+                           data-original-total="${originalTotalWeight}"
+                           class="total-weight-input"
+                           id="totalWeightInput">
+                    <span class="ingredient-unit">g</span>
+                    <span class="ingredient-original total-weight-original" style="${totalWeightChanged ? '' : 'display:none'}">(originale: ${originalTotalWeight} g)</span>
+                </div>
+            </div>
+        </div>
+    ` : '';
+    
+    elements.ingredientsList.innerHTML = totalWeightHtml + recipe.subsections.map(subsection => `
         <div class="ingredient-subsection">
             <h3 class="subsection-title">${escapeHtml(subsection.name)}</h3>
             <div class="ingredient-list">
@@ -393,6 +441,7 @@ function renderIngredients(recipe) {
                                    min="0"
                                    data-ingredient-id="${ing.id}"
                                    data-original-qty="${ing.original_quantity || 0}"
+                                   data-unit="${ing.unit || ''}"
                                    class="ingredient-qty-input">
                             <span class="ingredient-unit">${escapeHtml(ing.unit || '')}</span>
                         </div>
@@ -409,6 +458,84 @@ function renderIngredients(recipe) {
         input.addEventListener('input', debounce(handleQuantityChange, 300));
         input.addEventListener('change', handleQuantityChange);
     });
+    
+    // Add total weight change listener if present
+    const totalWeightInput = document.getElementById('totalWeightInput');
+    if (totalWeightInput) {
+        totalWeightInput.addEventListener('input', debounce(handleTotalWeightChange, 300));
+        totalWeightInput.addEventListener('change', handleTotalWeightChange);
+    }
+}
+
+// Handle total weight change - scale all ingredients proportionally
+async function handleTotalWeightChange(e) {
+    const input = e.target;
+    const newTotalWeight = parseFloat(input.value);
+    const originalTotalWeight = parseFloat(input.dataset.originalTotal);
+    
+    if (isNaN(newTotalWeight) || newTotalWeight === 0) {
+        return;
+    }
+    
+    // Calculate CURRENT total weight (sum of all current ingredient values)
+    let currentTotalWeight = 0;
+    const allInputs = elements.ingredientsList.querySelectorAll('.ingredient-qty-input');
+    allInputs.forEach(inp => {
+        const qty = parseFloat(inp.value) || 0;
+        currentTotalWeight += qty;
+    });
+    
+    if (currentTotalWeight === 0) {
+        return;
+    }
+    
+    // Calculate scale factor based on current total weight vs new desired total
+    const scaleFactor = newTotalWeight / currentTotalWeight;
+    
+    console.log(`Total weight scaling: ${currentTotalWeight} -> ${newTotalWeight}, factor: ${scaleFactor}`);
+    
+    // Update all ingredients proportionally
+    const updates = [];
+    
+    allInputs.forEach(inp => {
+        const currentQty = parseFloat(inp.value) || 0;
+        const origQty = parseFloat(inp.dataset.originalQty) || 0;
+        
+        if (currentQty > 0) {
+            const newQty = Math.round(currentQty * scaleFactor * 100) / 100;
+            inp.value = newQty;
+            
+            updates.push({
+                id: parseInt(inp.dataset.ingredientId),
+                current_quantity: newQty
+            });
+            
+            // Update "original" display
+            const ingItem = inp.closest('.ingredient-item');
+            const originalSpan = ingItem.querySelector('.ingredient-original');
+            
+            if (origQty && Math.abs(newQty - origQty) > 0.001) {
+                originalSpan.style.display = '';
+            } else if (originalSpan) {
+                originalSpan.style.display = 'none';
+            }
+        }
+    });
+    
+    // Update total weight original display
+    const totalWeightOriginal = document.querySelector('.total-weight-original');
+    if (totalWeightOriginal && originalTotalWeight) {
+        if (Math.abs(newTotalWeight - originalTotalWeight) > 0.001) {
+            totalWeightOriginal.style.display = '';
+        } else {
+            totalWeightOriginal.style.display = 'none';
+        }
+    }
+    
+    // Save to database
+    if (updates.length > 0) {
+        await updateQuantities(state.currentRecipeId, updates);
+    }
 }
 
 // Debounce helper to prevent too many API calls
@@ -486,9 +613,41 @@ async function handleQuantityChange(e) {
         }
     });
     
+    // Update total weight display if present
+    updateTotalWeightDisplay();
+    
     // Save to database
     if (updates.length > 0) {
         await updateQuantities(state.currentRecipeId, updates);
+    }
+}
+
+// Update total weight display after ingredient changes
+function updateTotalWeightDisplay() {
+    const totalWeightInput = document.getElementById('totalWeightInput');
+    if (!totalWeightInput) return;
+    
+    // Recalculate total weight - sum ALL quantities regardless of unit
+    let totalWeight = 0;
+    const allInputs = elements.ingredientsList.querySelectorAll('.ingredient-qty-input');
+    
+    allInputs.forEach(inp => {
+        const qty = parseFloat(inp.value) || 0;
+        totalWeight += qty;
+    });
+    
+    totalWeight = Math.round(totalWeight * 100) / 100;
+    totalWeightInput.value = totalWeight;
+    
+    // Update original display
+    const originalTotal = parseFloat(totalWeightInput.dataset.originalTotal);
+    const totalWeightOriginal = document.querySelector('.total-weight-original');
+    if (totalWeightOriginal) {
+        if (Math.abs(totalWeight - originalTotal) > 0.001) {
+            totalWeightOriginal.style.display = '';
+        } else {
+            totalWeightOriginal.style.display = 'none';
+        }
     }
 }
 
@@ -709,7 +868,11 @@ function removePhoto() {
 // Dynamic Form Elements
 // ============================================
 
-function addSubsection(name = '', ingredients = []) {
+function addSubsection(nameOrEvent = '', ingredients = []) {
+    // Handle case when called from button click (event passed as first arg)
+    const name = (typeof nameOrEvent === 'string') ? nameOrEvent : '';
+    const ings = (typeof nameOrEvent === 'string') ? ingredients : [];
+    
     const index = elements.subsectionsContainer.children.length;
     const subsectionHtml = `
         <div class="subsection-card">
@@ -726,8 +889,8 @@ function addSubsection(name = '', ingredients = []) {
                 </button>
             </div>
             <div class="ingredients-edit-list">
-                ${ingredients.length > 0 
-                    ? ingredients.map(ing => createIngredientRow(ing)).join('')
+                ${ings.length > 0 
+                    ? ings.map(ing => createIngredientRow(ing)).join('')
                     : createIngredientRow()}
             </div>
             <button type="button" class="add-ingredient-btn" onclick="addIngredient(this)">
@@ -794,7 +957,10 @@ function removeIngredient(btn) {
     }
 }
 
-function addStep(description = '') {
+function addStep(descriptionOrEvent = '') {
+    // Handle case when called from button click (event passed as first arg)
+    const description = (typeof descriptionOrEvent === 'string') ? descriptionOrEvent : '';
+    
     const index = elements.stepsContainer.children.length + 1;
     const stepHtml = `
         <div class="step-edit-row">

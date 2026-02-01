@@ -566,6 +566,65 @@ label {
     margin-bottom: var(--spacing-lg);
 }
 
+/* Total Weight for Bread recipes */
+.total-weight-container {
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: linear-gradient(135deg, var(--accent-primary-light) 0%, var(--bg-primary) 100%);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--accent-primary);
+}
+
+.total-weight-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.total-weight-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--accent-primary);
+}
+
+.total-weight-value {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.total-weight-input {
+    width: 100px;
+    padding: 0.5rem 0.75rem;
+    text-align: right;
+    font-weight: 600;
+    font-size: 1.1rem;
+    border: 2px solid var(--accent-primary);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-primary);
+}
+
+.total-weight-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-primary-light);
+}
+
+.total-weight-value .ingredient-unit {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--accent-primary);
+}
+
+.total-weight-original {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+}
+
 .subsection-title {
     font-size: 1rem;
     font-weight: 600;

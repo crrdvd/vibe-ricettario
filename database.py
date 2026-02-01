@@ -129,7 +129,7 @@ class Database:
             # Insert default categories
             default_categories = [
                 'Antipasti', 'Primi Piatti', 'Secondi Piatti', 'Contorni',
-                'Dolci', 'Bevande', 'Colazione', 'Snack', 'Salse', 'Pane e Pizza'
+                'Dolci', 'Bevande', 'Colazione', 'Snack', 'Salse', 'Pane e Lievitati'
             ]
             for cat in default_categories:
                 cursor.execute('INSERT OR IGNORE INTO categories (name) VALUES (?)', (cat,))
