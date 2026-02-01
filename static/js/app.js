@@ -382,31 +382,46 @@ function renderIngredients(recipe) {
         <div class="ingredient-subsection">
             <h3 class="subsection-title">${escapeHtml(subsection.name)}</h3>
             <div class="ingredient-list">
-                ${subsection.ingredients.map(ing => `
-                    <div class="ingredient-item" data-id="${ing.id}" data-original="${ing.original_quantity}">
+                ${subsection.ingredients.map(ing => {
+                    const hasChanged = ing.current_quantity != ing.original_quantity && ing.original_quantity;
+                    return `
+                    <div class="ingredient-item" data-id="${ing.id}" data-original="${ing.original_quantity || 0}">
                         <div class="ingredient-quantity">
                             <input type="number" 
-                                   value="${ing.current_quantity || ''}" 
+                                   value="${ing.current_quantity !== null ? ing.current_quantity : ''}" 
                                    step="any"
                                    min="0"
                                    data-ingredient-id="${ing.id}"
+                                   data-original-qty="${ing.original_quantity || 0}"
                                    class="ingredient-qty-input">
                             <span class="ingredient-unit">${escapeHtml(ing.unit || '')}</span>
                         </div>
                         <span class="ingredient-name">${escapeHtml(ing.name)}</span>
-                        ${ing.current_quantity != ing.original_quantity && ing.original_quantity 
-                            ? `<span class="ingredient-original">(originale: ${ing.original_quantity} ${escapeHtml(ing.unit || '')})</span>`
-                            : ''}
+                        <span class="ingredient-original" style="${hasChanged ? '' : 'display:none'}">(originale: ${ing.original_quantity || 0} ${escapeHtml(ing.unit || '')})</span>
                     </div>
-                `).join('')}
+                `}).join('')}
             </div>
         </div>
     `).join('');
     
-    // Add quantity change listeners
+    // Add quantity change listeners - use 'input' for real-time updates
     elements.ingredientsList.querySelectorAll('.ingredient-qty-input').forEach(input => {
+        input.addEventListener('input', debounce(handleQuantityChange, 300));
         input.addEventListener('change', handleQuantityChange);
     });
+}
+
+// Debounce helper to prevent too many API calls
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }
 
 function renderSteps(steps) {
@@ -425,46 +440,48 @@ function renderSteps(steps) {
 async function handleQuantityChange(e) {
     const input = e.target;
     const ingredientId = parseInt(input.dataset.ingredientId);
-    const newQuantity = parseFloat(input.value) || 0;
-    const item = input.closest('.ingredient-item');
-    const originalQuantity = parseFloat(item.dataset.original);
+    const newQuantity = parseFloat(input.value);
+    const originalQuantity = parseFloat(input.dataset.originalQty);
     
-    if (!originalQuantity || newQuantity === 0) {
-        // Just update this one ingredient
-        await saveQuantityChange(ingredientId, newQuantity);
+    // If input is empty or zero, or no original quantity, don't scale others
+    if (isNaN(newQuantity) || newQuantity === 0 || !originalQuantity || originalQuantity === 0) {
+        if (!isNaN(newQuantity)) {
+            await saveQuantityChange(ingredientId, newQuantity);
+        }
         return;
     }
     
-    // Calculate scale factor
+    // Calculate scale factor based on original quantity
     const scaleFactor = newQuantity / originalQuantity;
+    
+    console.log(`Scaling: ${originalQuantity} -> ${newQuantity}, factor: ${scaleFactor}`);
     
     // Update all ingredients proportionally
     const allInputs = elements.ingredientsList.querySelectorAll('.ingredient-qty-input');
     const updates = [];
     
     allInputs.forEach(inp => {
-        const ingItem = inp.closest('.ingredient-item');
-        const origQty = parseFloat(ingItem.dataset.original);
-        if (origQty) {
+        const origQty = parseFloat(inp.dataset.originalQty);
+        
+        if (origQty && origQty > 0) {
             const newQty = Math.round(origQty * scaleFactor * 100) / 100;
             inp.value = newQty;
+            
             updates.push({
                 id: parseInt(inp.dataset.ingredientId),
                 current_quantity: newQty
             });
             
             // Update "original" display
+            const ingItem = inp.closest('.ingredient-item');
             const originalSpan = ingItem.querySelector('.ingredient-original');
-            if (newQty != origQty) {
-                if (originalSpan) {
-                    const unit = ingItem.querySelector('.ingredient-unit').textContent;
-                    originalSpan.textContent = `(originale: ${origQty} ${unit})`;
-                } else {
-                    const unit = ingItem.querySelector('.ingredient-unit').textContent;
-                    ingItem.innerHTML += `<span class="ingredient-original">(originale: ${origQty} ${unit})</span>`;
-                }
-            } else if (originalSpan) {
-                originalSpan.remove();
+            
+            if (Math.abs(newQty - origQty) > 0.001) {
+                // Values are different - show original
+                originalSpan.style.display = '';
+            } else {
+                // Values are same - hide original
+                originalSpan.style.display = 'none';
             }
         }
     });
