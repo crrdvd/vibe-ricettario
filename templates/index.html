@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ricettario</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1 class="app-title">🍳 Ricettario</h1>
+                <button class="btn-icon" id="closeSidebar" aria-label="Chiudi menu">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Search and Filter -->
+            <div class="sidebar-filters">
+                <div class="search-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Cerca ricette...">
+                </div>
+                <select id="categoryFilter" class="category-filter">
+                    <option value="">Tutte le categorie</option>
+                </select>
+            </div>
+            
+            <!-- Recipe List -->
+            <div class="recipe-list" id="recipeList">
+                <!-- Recipes will be loaded here -->
+            </div>
+            
+            <!-- Add Recipe Button -->
+            <div class="sidebar-footer">
+                <button class="btn btn-primary btn-full" id="addRecipeBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Nuova Ricetta
+                </button>
+                <a href="/settings" class="btn btn-secondary btn-full">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    Impostazioni
+                </a>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <!-- Mobile Header -->
+            <header class="mobile-header">
+                <button class="btn-icon" id="openSidebar" aria-label="Apri menu">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <h2 class="mobile-title" id="mobileTitle">Ricettario</h2>
+                <div class="mobile-actions" id="mobileActions"></div>
+            </header>
+            
+            <!-- Welcome Screen -->
+            <div class="welcome-screen" id="welcomeScreen">
+                <div class="welcome-content">
+                    <div class="welcome-icon">📖</div>
+                    <h2>Benvenuto nel tuo Ricettario</h2>
+                    <p>Seleziona una ricetta dalla lista o creane una nuova</p>
+                    <button class="btn btn-primary" id="welcomeAddBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Crea la tua prima ricetta
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Recipe View -->
+            <div class="recipe-view hidden" id="recipeView">
+                <div class="recipe-header">
+                    <div class="recipe-photo-container" id="recipePhotoContainer">
+                        <img src="" alt="" id="recipePhoto" class="recipe-photo hidden">
+                        <div class="recipe-photo-placeholder" id="recipePhotoPlaceholder">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="recipe-info">
+                        <span class="recipe-category" id="recipeCategory"></span>
+                        <h1 class="recipe-title" id="recipeTitle"></h1>
+                        <p class="recipe-description" id="recipeDescription"></p>
+                        <div class="recipe-meta">
+                            <span class="meta-item" id="recipeDate">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                                <span></span>
+                            </span>
+                            <span class="meta-item" id="recipeTime">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
+                                <span></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="recipe-actions">
+                        <button class="btn btn-secondary" id="editRecipeBtn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                            Modifica
+                        </button>
+                        <button class="btn btn-danger" id="deleteRecipeBtn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                            Elimina
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="recipe-body">
+                    <section class="recipe-section">
+                        <h2 class="section-title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                                <line x1="3" y1="6" x2="21" y2="6"></line>
+                                <path d="M16 10a4 4 0 0 1-8 0"></path>
+                            </svg>
+                            Ingredienti
+                        </h2>
+                        <div id="ingredientsList"></div>
+                    </section>
+                    
+                    <section class="recipe-section">
+                        <h2 class="section-title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="8" y1="6" x2="21" y2="6"></line>
+                                <line x1="8" y1="12" x2="21" y2="12"></line>
+                                <line x1="8" y1="18" x2="21" y2="18"></line>
+                                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                            </svg>
+                            Preparazione
+                        </h2>
+                        <ol class="preparation-steps" id="preparationSteps"></ol>
+                    </section>
+                </div>
+            </div>
+            
+            <!-- Recipe Edit Form -->
+            <div class="recipe-edit hidden" id="recipeEdit">
+                <form id="recipeForm">
+                    <div class="form-header">
+                        <h2 id="formTitle">Nuova Ricetta</h2>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelEditBtn">Annulla</button>
+                            <button type="submit" class="btn btn-primary">Salva</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-body">
+                        <div class="form-section">
+                            <h3>Informazioni Base</h3>
+                            
+                            <div class="form-group">
+                                <label for="recipeName">Nome *</label>
+                                <input type="text" id="recipeName" name="name" required placeholder="Nome della ricetta">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="recipeDesc">Descrizione</label>
+                                <textarea id="recipeDesc" name="description" rows="3" placeholder="Breve descrizione della ricetta"></textarea>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="recipeCategorySelect">Categoria</label>
+                                    <select id="recipeCategorySelect" name="category_id">
+                                        <option value="">Nessuna categoria</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="recipeCreationDate">Data di creazione</label>
+                                    <input type="date" id="recipeCreationDate" name="creation_date">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="recipePrepTime">Tempo di preparazione (min)</label>
+                                    <input type="number" id="recipePrepTime" name="preparation_time" min="1" placeholder="30">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Foto</label>
+                                <div class="photo-upload" id="photoUpload">
+                                    <input type="file" id="photoInput" accept="image/*" hidden>
+                                    <div class="photo-preview hidden" id="photoPreview">
+                                        <img src="" alt="Preview" id="photoPreviewImg">
+                                        <button type="button" class="btn-remove-photo" id="removePhotoBtn">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="photo-placeholder" id="photoPlaceholder">
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                            <polyline points="21 15 16 10 5 21"></polyline>
+                                        </svg>
+                                        <span>Clicca per aggiungere una foto</span>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="photoUrl" name="photo_url">
+                            </div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <div class="section-header">
+                                <h3>Ingredienti</h3>
+                                <button type="button" class="btn btn-sm btn-secondary" id="addSubsectionBtn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    Aggiungi Sezione
+                                </button>
+                            </div>
+                            <div id="subsectionsContainer"></div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <div class="section-header">
+                                <h3>Preparazione</h3>
+                                <button type="button" class="btn btn-sm btn-secondary" id="addStepBtn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    Aggiungi Passaggio
+                                </button>
+                            </div>
+                            <div id="stepsContainer"></div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div class="modal hidden" id="deleteModal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <h3>Elimina Ricetta</h3>
+            <p>Sei sicuro di voler eliminare questa ricetta? Questa azione non può essere annullata.</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancelDeleteBtn">Annulla</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">Elimina</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

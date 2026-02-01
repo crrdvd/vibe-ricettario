@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Impostazioni - Ricettario</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="settings-container">
+        <header class="settings-header">
+            <a href="/" class="back-link">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Torna al Ricettario
+            </a>
+            <h1>Impostazioni</h1>
+        </header>
+        
+        <main class="settings-content">
+            <!-- Appearance Section -->
+            <section class="settings-section">
+                <h2>Aspetto</h2>
+                
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Tema</label>
+                        <p>Scegli tra tema chiaro o scuro</p>
+                    </div>
+                    <div class="setting-control">
+                        <div class="theme-toggle" id="themeToggle">
+                            <button class="theme-btn" data-theme="light">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="5"></circle>
+                                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                                </svg>
+                                Chiaro
+                            </button>
+                            <button class="theme-btn" data-theme="dark">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                                </svg>
+                                Scuro
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Font</label>
+                        <p>Scegli il carattere per l'interfaccia</p>
+                    </div>
+                    <div class="setting-control">
+                        <select id="fontSelect" class="select-input">
+                            <option value="sans-serif">Sans Serif (Inter)</option>
+                            <option value="serif">Serif (Libre Baskerville)</option>
+                            <option value="monospace">Monospace (Fira Code)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Spaziatura</label>
+                        <p>Densità dell'interfaccia</p>
+                    </div>
+                    <div class="setting-control">
+                        <select id="spacingSelect" class="select-input">
+                            <option value="compact">Compatta</option>
+                            <option value="comfortable">Comoda</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Format Section -->
+            <section class="settings-section">
+                <h2>Formato</h2>
+                
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Formato Data</label>
+                        <p>Come visualizzare le date</p>
+                    </div>
+                    <div class="setting-control">
+                        <select id="dateFormatSelect" class="select-input">
+                            <option value="DD/MM/YYYY">DD/MM/YYYY (31/12/2024)</option>
+                            <option value="MM/DD/YYYY">MM/DD/YYYY (12/31/2024)</option>
+                            <option value="YYYY-MM-DD">YYYY-MM-DD (2024-12-31)</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Units Section -->
+            <section class="settings-section">
+                <h2>Unità di Misura</h2>
+                <p class="section-description">Gestisci le unità di misura disponibili per gli ingredienti</p>
+                
+                <div class="units-list" id="unitsList">
+                    <!-- Units will be loaded here -->
+                </div>
+                
+                <div class="add-unit-form">
+                    <input type="text" id="newUnitName" placeholder="Nome (es. grammi)" class="input-field">
+                    <input type="text" id="newUnitAbbr" placeholder="Abbreviazione (es. g)" class="input-field">
+                    <button type="button" class="btn btn-primary" id="addUnitBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Aggiungi
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Categories Section -->
+            <section class="settings-section">
+                <h2>Categorie</h2>
+                <p class="section-description">Gestisci le categorie per organizzare le ricette</p>
+                
+                <div class="categories-list" id="categoriesList">
+                    <!-- Categories will be loaded here -->
+                </div>
+                
+                <div class="add-category-form">
+                    <input type="text" id="newCategoryName" placeholder="Nome categoria" class="input-field">
+                    <button type="button" class="btn btn-primary" id="addCategoryBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Aggiungi
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Import/Export Section -->
+            <section class="settings-section">
+                <h2>Backup e Ripristino</h2>
+                <p class="section-description">Esporta o importa le tue ricette in formato JSON</p>
+                
+                <div class="backup-actions">
+                    <div class="backup-item">
+                        <div class="backup-info">
+                            <h4>Esporta Ricette</h4>
+                            <p>Scarica tutte le ricette e le impostazioni in un file JSON</p>
+                        </div>
+                        <button class="btn btn-secondary" id="exportBtn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Esporta
+                        </button>
+                    </div>
+                    
+                    <div class="backup-item">
+                        <div class="backup-info">
+                            <h4>Importa Ricette</h4>
+                            <p>Ripristina ricette da un file JSON di backup</p>
+                        </div>
+                        <input type="file" id="importInput" accept=".json" hidden>
+                        <button class="btn btn-secondary" id="importBtn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            Importa
+                        </button>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- About Section -->
+            <section class="settings-section">
+                <h2>Informazioni</h2>
+                <div class="about-info">
+                    <p><strong>Ricettario</strong> v1.0</p>
+                    <p>Un'applicazione per gestire le tue ricette preferite</p>
+                    <p class="about-tech">Python Flask + SQLite</p>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+</body>
+</html>
