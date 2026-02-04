@@ -1,12 +1,16 @@
-# 🍳 Ricettario - Recipe Book
+# 🍳 Vibe Ricettario
 
 Un'applicazione web per gestire le tue ricette preferite, ottimizzata per Raspberry Pi.
+
+> **🎵 Vibe Coding Project**  
+> Questo progetto è stato interamente realizzato con **vibe coding** - programmazione assistita da AI attraverso conversazione naturale con Claude (Anthropic). Nessuna riga di codice è stata scritta manualmente: tutto è nato da descrizioni, richieste e feedback in linguaggio naturale.
 
 ## Caratteristiche
 
 - ✅ Gestione completa ricette (CRUD)
 - ✅ Ingredienti organizzati in sezioni
 - ✅ **Scaling proporzionale**: modifica una quantità e tutte si aggiornano automaticamente
+- ✅ **Peso Totale** per ricette "Pane e Lievitati": modifica il peso totale e tutti gli ingredienti si scalano proporzionalmente
 - ✅ Salvataggio automatico delle ultime quantità usate
 - ✅ Visualizzazione quantità originali
 - ✅ Passaggi di preparazione numerati
@@ -31,20 +35,17 @@ Un'applicazione web per gestire le tue ricette preferite, ottimizzata per Raspbe
 
 ## Installazione su Raspberry Pi
 
-### 1. Trasferisci i file
+### 1. Clona la repository
 
 ```bash
-# Crea la cartella
-mkdir -p /home/pi/recipe-book
-
-# Copia tutti i file del progetto nella cartella
-# Puoi usare scp, SFTP, o una chiavetta USB
+cd /home/davide/GIT
+git clone <url-repository> vibe-ricettario
+cd vibe-ricettario
 ```
 
 ### 2. Installa le dipendenze
 
 ```bash
-cd /home/pi/recipe-book
 pip3 install -r requirements.txt
 ```
 
@@ -60,23 +61,23 @@ Apri un browser e vai a `http://<IP-RASPBERRY>:5000`
 
 ```bash
 # Crea la cartella per i log
-sudo mkdir -p /var/log/recipe-book
-sudo chown pi:pi /var/log/recipe-book
+sudo mkdir -p /var/log/vibe-ricettario
+sudo chown davide:davide /var/log/vibe-ricettario
 
 # Copia il file di servizio
-sudo cp recipe-book.service /etc/systemd/system/
+sudo cp vibe-ricettario.service /etc/systemd/system/
 
 # Ricarica systemd
 sudo systemctl daemon-reload
 
 # Abilita il servizio all'avvio
-sudo systemctl enable recipe-book
+sudo systemctl enable vibe-ricettario
 
 # Avvia il servizio
-sudo systemctl start recipe-book
+sudo systemctl start vibe-ricettario
 
 # Verifica lo stato
-sudo systemctl status recipe-book
+sudo systemctl status vibe-ricettario
 ```
 
 ### 5. Accedi all'applicazione
@@ -94,39 +95,42 @@ hostname -I
 ## Struttura del Progetto
 
 ```
-recipe-book/
-├── app.py                 # Applicazione Flask principale
-├── database.py            # Modulo database SQLite
-├── requirements.txt       # Dipendenze Python
-├── recipe-book.service    # File systemd per auto-start
-├── recipe_book.db         # Database SQLite (creato automaticamente)
-├── uploads/               # Foto ricette
+vibe-ricettario/
+├── app.py                    # Applicazione Flask principale
+├── database.py               # Modulo database SQLite
+├── requirements.txt          # Dipendenze Python
+├── vibe-ricettario.service   # File systemd per auto-start
+├── recipe_book.db            # Database SQLite (creato automaticamente)
+├── uploads/                  # Foto ricette
 ├── static/
 │   ├── css/
-│   │   └── style.css      # Stili (temi, responsive)
+│   │   └── style.css         # Stili (temi, responsive)
 │   └── js/
-│       ├── app.js         # JavaScript principale
-│       └── settings.js    # JavaScript pagina impostazioni
+│       ├── app.js            # JavaScript principale
+│       └── settings.js       # JavaScript pagina impostazioni
 └── templates/
-    ├── index.html         # Pagina principale
-    └── settings.html      # Pagina impostazioni
+    ├── index.html            # Pagina principale
+    └── settings.html         # Pagina impostazioni
 ```
 
 ## Comandi Utili
 
 ```bash
 # Riavvia il servizio
-sudo systemctl restart recipe-book
+sudo systemctl restart vibe-ricettario
 
 # Ferma il servizio
-sudo systemctl stop recipe-book
+sudo systemctl stop vibe-ricettario
 
 # Visualizza i log
-tail -f /var/log/recipe-book/app.log
-tail -f /var/log/recipe-book/error.log
+tail -f /var/log/vibe-ricettario/app.log
+tail -f /var/log/vibe-ricettario/error.log
+
+# Visualizza log systemd
+journalctl -u vibe-ricettario -f
 
 # Backup manuale del database
-cp /home/pi/recipe-book/recipe_book.db /home/pi/recipe_book_backup.db
+cp /home/davide/GIT/vibe-ricettario/recipe_book.db ~/recipe_book_backup.db
 ```
 
 ## Backup e Ripristino
@@ -144,11 +148,11 @@ cp /home/pi/recipe-book/recipe_book.db /home/pi/recipe_book_backup.db
 ### Backup manuale database
 ```bash
 # Backup
-cp recipe_book.db recipe_book_backup_$(date +%Y%m%d).db
+cp /home/davide/GIT/vibe-ricettario/recipe_book.db ~/recipe_book_backup_$(date +%Y%m%d).db
 
 # Ripristino
-cp recipe_book_backup_YYYYMMDD.db recipe_book.db
-sudo systemctl restart recipe-book
+cp ~/recipe_book_backup_YYYYMMDD.db /home/davide/GIT/vibe-ricettario/recipe_book.db
+sudo systemctl restart vibe-ricettario
 ```
 
 ## Personalizzazione
@@ -167,28 +171,43 @@ Per produzione con HTTPS, considera di usare Nginx come reverse proxy.
 ### L'app non si avvia
 ```bash
 # Controlla i log
-journalctl -u recipe-book -f
+journalctl -u vibe-ricettario -f
 
 # Verifica le dipendenze
 pip3 install -r requirements.txt
 
 # Prova ad avviare manualmente
+cd /home/davide/GIT/vibe-ricettario
 python3 app.py
 ```
 
 ### Database corrotto
 ```bash
 # Elimina e ricrea (perderai i dati!)
-rm recipe_book.db
-sudo systemctl restart recipe-book
+rm /home/davide/GIT/vibe-ricettario/recipe_book.db
+sudo systemctl restart vibe-ricettario
 ```
 
 ### Permessi file
 ```bash
-chown -R pi:pi /home/pi/recipe-book
-chmod 755 /home/pi/recipe-book
+chown -R davide:davide /home/davide/GIT/vibe-ricettario
+chmod 755 /home/davide/GIT/vibe-ricettario
 ```
+
+## Funzionalità Speciali
+
+### Scaling Ingredienti
+Quando visualizzi una ricetta, puoi modificare la quantità di qualsiasi ingrediente. Tutti gli altri ingredienti si aggiorneranno proporzionalmente mantenendo le proporzioni originali della ricetta.
+
+### Peso Totale (solo per "Pane e Lievitati")
+Per le ricette nella categoria "Pane e Lievitati" appare un campo speciale "Peso Totale" che mostra la somma di tutte le quantità. Modificando questo valore, tutti gli ingredienti si scalano proporzionalmente - utile quando vuoi fare un impasto di un peso specifico.
+
+---
 
 ## Licenza
 
-Uso personale. Creato con ❤️ per la tua cucina.
+Uso personale. Creato con ❤️ e **vibe coding** per la tua cucina.
+
+---
+
+*Progetto realizzato interamente tramite vibe coding con Claude AI*
