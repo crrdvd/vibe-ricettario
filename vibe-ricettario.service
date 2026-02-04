@@ -1,0 +1,19 @@
+[Unit]
+Description=Recipe Book Web Application
+After=network.target
+
+[Service]
+Type=simple
+User=davide
+WorkingDirectory=/home/davide/GIT/vibe-ricettario
+Environment=FLASK_ENV=production
+ExecStart=/usr/bin/python3 /home/davide/GIT/vibe-ricettario/app.py
+Restart=always
+RestartSec=5
+
+# Logging
+StandardOutput=append:/var/log/vibe-ricettario/app.log
+StandardError=append:/var/log/vibe-ricettario/error.log
+
+[Install]
+WantedBy=multi-user.target
