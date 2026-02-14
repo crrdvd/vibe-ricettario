@@ -96,6 +96,16 @@ def update_quantities(recipe_id):
     return jsonify({'error': 'Errore durante l\'aggiornamento'}), 400
 
 
+@app.route('/api/recipes/<int:recipe_id>/portions', methods=['PUT'])
+def update_portions(recipe_id):
+    """Update current portions for a recipe"""
+    data = request.json
+    success = db.update_portions(recipe_id, data.get('current_portions', 1))
+    if success:
+        return jsonify({'message': 'Porzioni aggiornate'})
+    return jsonify({'error': 'Errore durante l\'aggiornamento'}), 400
+
+
 # ============== API ROUTES - PHOTO UPLOAD ==============
 
 @app.route('/api/upload', methods=['POST'])

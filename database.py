@@ -71,11 +71,21 @@ class Database:
                     preparation_time INTEGER,
                     photo_url TEXT,
                     category_id INTEGER,
+                    original_portions REAL DEFAULT 1,
+                    current_portions REAL DEFAULT 1,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
                 )
             ''')
+            
+            # Migration: Add portions columns if they don't exist (for existing databases)
+            cursor.execute("PRAGMA table_info(recipes)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if 'original_portions' not in columns:
+                cursor.execute('ALTER TABLE recipes ADD COLUMN original_portions REAL DEFAULT 1')
+            if 'current_portions' not in columns:
+                cursor.execute('ALTER TABLE recipes ADD COLUMN current_portions REAL DEFAULT 1')
             
             # Ingredient subsections table
             cursor.execute('''
@@ -227,16 +237,19 @@ class Database:
             
             # Insert recipe
             creation_date = data.get('creation_date', datetime.now().strftime('%Y-%m-%d'))
+            portions = data.get('portions', 1) or 1
             cursor.execute('''
-                INSERT INTO recipes (name, description, creation_date, preparation_time, photo_url, category_id)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO recipes (name, description, creation_date, preparation_time, photo_url, category_id, original_portions, current_portions)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 data.get('name', ''),
                 data.get('description', ''),
                 creation_date,
                 data.get('preparation_time'),
                 data.get('photo_url'),
-                data.get('category_id')
+                data.get('category_id'),
+                portions,
+                portions
             ))
             recipe_id = cursor.lastrowid
             
@@ -282,10 +295,12 @@ class Database:
                 return False
             
             # Update recipe
+            portions = data.get('portions', 1) or 1
             cursor.execute('''
                 UPDATE recipes
                 SET name = ?, description = ?, creation_date = ?, preparation_time = ?,
-                    photo_url = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP
+                    photo_url = ?, category_id = ?, original_portions = ?, current_portions = ?,
+                    updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (
                 data.get('name', ''),
@@ -294,6 +309,8 @@ class Database:
                 data.get('preparation_time'),
                 data.get('photo_url'),
                 data.get('category_id'),
+                portions,
+                portions,
                 recipe_id
             ))
             
@@ -353,6 +370,17 @@ class Database:
                     WHERE id = ?
                 ''', (ing.get('current_quantity'), ing.get('id')))
             return True
+    
+    def update_portions(self, recipe_id, current_portions):
+        """Update current portions for a recipe"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE recipes
+                SET current_portions = ?
+                WHERE id = ?
+            ''', (current_portions, recipe_id))
+            return cursor.rowcount > 0
     
     # ============== CATEGORIES ==============
     
