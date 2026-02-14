@@ -673,7 +673,7 @@ async function handleTotalWeightChange(e) {
     }
     
     // Update portions display
-    updatePortionsDisplay(scaleFactor);
+    updatePortionsDisplay();
     
     // Save updated portions
     const portionsInput = document.getElementById('portionsInput');
@@ -761,7 +761,7 @@ async function handleQuantityChange(e) {
     updateTotalWeightDisplay();
     
     // Update portions display
-    updatePortionsDisplay(scaleFactor);
+    updatePortionsDisplay();
     
     // Save to database
     if (updates.length > 0) {
@@ -776,13 +776,26 @@ async function handleQuantityChange(e) {
 }
 
 // Update portions display after ingredient changes
-function updatePortionsDisplay(scaleFactor) {
+function updatePortionsDisplay() {
     const portionsInput = document.getElementById('portionsInput');
     if (!portionsInput) return;
     
     const originalPortions = parseFloat(portionsInput.dataset.originalPortions) || 1;
-    const newPortions = Math.round(originalPortions * scaleFactor * 100) / 100;
     
+    // Calculate scale factor from first valid ingredient ratio
+    let scaleFactor = 1;
+    const allInputs = elements.ingredientsList.querySelectorAll('.ingredient-qty-input');
+    
+    for (const inp of allInputs) {
+        const origQty = parseFloat(inp.dataset.originalQty) || 0;
+        const currQty = parseFloat(inp.value) || 0;
+        if (origQty > 0 && currQty > 0) {
+            scaleFactor = currQty / origQty;
+            break;
+        }
+    }
+    
+    const newPortions = Math.round(originalPortions * scaleFactor * 100) / 100;
     portionsInput.value = newPortions;
 }
 
