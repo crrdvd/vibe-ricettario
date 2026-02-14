@@ -1,1 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Database (now in /home/davide/data/)
 recipe_book.db
+
+# Uploads (now in /home/davide/data/uploads/)
+uploads/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
