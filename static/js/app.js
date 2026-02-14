@@ -61,6 +61,7 @@ const elements = {
     recipeCategorySelect: document.getElementById('recipeCategorySelect'),
     recipeCreationDate: document.getElementById('recipeCreationDate'),
     recipePrepTime: document.getElementById('recipePrepTime'),
+    recipePortions: document.getElementById('recipePortions'),
     photoUpload: document.getElementById('photoUpload'),
     photoInput: document.getElementById('photoInput'),
     photoPreview: document.getElementById('photoPreview'),
@@ -163,6 +164,13 @@ async function updateQuantities(recipeId, ingredients) {
     return await apiCall(`/api/recipes/${recipeId}/quantities`, {
         method: 'PUT',
         body: JSON.stringify({ ingredients })
+    });
+}
+
+async function updatePortions(recipeId, currentPortions) {
+    return await apiCall(`/api/recipes/${recipeId}/portions`, {
+        method: 'PUT',
+        body: JSON.stringify({ current_portions: currentPortions })
     });
 }
 
@@ -381,6 +389,27 @@ function renderIngredients(recipe) {
     // Check if this is a "Pane e Lievitati" recipe
     const isBreadRecipe = recipe.category_name === 'Pane e Lievitati';
     
+    // Get portions data from database
+    const originalPortions = parseFloat(recipe.original_portions) || 1;
+    
+    // Calculate current portions based on ingredient scaling
+    // If ingredients have been scaled, portions should reflect that
+    let scaleFactor = 1;
+    let hasValidIngredient = false;
+    
+    recipe.subsections.forEach(sub => {
+        sub.ingredients.forEach(ing => {
+            const origQty = parseFloat(ing.original_quantity) || 0;
+            const currQty = parseFloat(ing.current_quantity) || 0;
+            if (origQty > 0 && currQty > 0 && !hasValidIngredient) {
+                scaleFactor = currQty / origQty;
+                hasValidIngredient = true;
+            }
+        });
+    });
+    
+    const currentPortions = Math.round(originalPortions * scaleFactor * 100) / 100;
+    
     // Calculate total weight (sum of ALL ingredient quantities, regardless of unit)
     let totalWeight = 0;
     let originalTotalWeight = 0;
@@ -398,6 +427,34 @@ function renderIngredients(recipe) {
     originalTotalWeight = Math.round(originalTotalWeight * 100) / 100;
     
     const totalWeightChanged = Math.abs(totalWeight - originalTotalWeight) > 0.001;
+    
+    // Build portions HTML (always visible, no original reference)
+    const portionsHtml = `
+        <div class="portions-container">
+            <div class="portions-item">
+                <div class="portions-label">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    Porzioni
+                </div>
+                <div class="portions-value">
+                    <button type="button" class="portions-btn portions-minus" id="portionsMinus">−</button>
+                    <input type="number" 
+                           value="${currentPortions}" 
+                           step="any"
+                           min="0.1"
+                           data-original-portions="${originalPortions}"
+                           class="portions-input"
+                           id="portionsInput">
+                    <button type="button" class="portions-btn portions-plus" id="portionsPlus">+</button>
+                </div>
+            </div>
+        </div>
+    `;
     
     // Build total weight HTML if it's a bread recipe
     const totalWeightHtml = isBreadRecipe ? `
@@ -426,7 +483,7 @@ function renderIngredients(recipe) {
         </div>
     ` : '';
     
-    elements.ingredientsList.innerHTML = totalWeightHtml + recipe.subsections.map(subsection => `
+    elements.ingredientsList.innerHTML = portionsHtml + totalWeightHtml + recipe.subsections.map(subsection => `
         <div class="ingredient-subsection">
             <h3 class="subsection-title">${escapeHtml(subsection.name)}</h3>
             <div class="ingredient-list">
@@ -459,12 +516,90 @@ function renderIngredients(recipe) {
         input.addEventListener('change', handleQuantityChange);
     });
     
+    // Add portions change listeners
+    const portionsInput = document.getElementById('portionsInput');
+    const portionsMinus = document.getElementById('portionsMinus');
+    const portionsPlus = document.getElementById('portionsPlus');
+    
+    if (portionsInput) {
+        portionsInput.addEventListener('input', debounce(handlePortionsChange, 300));
+        portionsInput.addEventListener('change', handlePortionsChange);
+        
+        portionsMinus.addEventListener('click', () => {
+            const currentVal = parseFloat(portionsInput.value) || 1;
+            if (currentVal > 1) {
+                portionsInput.value = currentVal - 1;
+                portionsInput.dispatchEvent(new Event('change'));
+            }
+        });
+        
+        portionsPlus.addEventListener('click', () => {
+            const currentVal = parseFloat(portionsInput.value) || 1;
+            portionsInput.value = currentVal + 1;
+            portionsInput.dispatchEvent(new Event('change'));
+        });
+    }
+    
     // Add total weight change listener if present
     const totalWeightInput = document.getElementById('totalWeightInput');
     if (totalWeightInput) {
         totalWeightInput.addEventListener('input', debounce(handleTotalWeightChange, 300));
         totalWeightInput.addEventListener('change', handleTotalWeightChange);
     }
+}
+
+// Handle portions change - scale all ingredients proportionally
+async function handlePortionsChange(e) {
+    const input = e.target;
+    const newPortions = parseFloat(input.value);
+    const originalPortions = parseFloat(input.dataset.originalPortions);
+    
+    if (isNaN(newPortions) || newPortions <= 0) {
+        return;
+    }
+    
+    // Calculate scale factor: we need to scale based on the ORIGINAL portions
+    // newQty = originalQty * (newPortions / originalPortions)
+    const scaleFactor = newPortions / originalPortions;
+    
+    console.log(`Portions scaling: ${originalPortions} -> ${newPortions}, factor: ${scaleFactor}`);
+    
+    // Update all ingredients proportionally based on original quantities
+    const allInputs = elements.ingredientsList.querySelectorAll('.ingredient-qty-input');
+    const updates = [];
+    
+    allInputs.forEach(inp => {
+        const origQty = parseFloat(inp.dataset.originalQty);
+        
+        if (origQty && origQty > 0) {
+            const newQty = Math.round(origQty * scaleFactor * 100) / 100;
+            inp.value = newQty;
+            
+            updates.push({
+                id: parseInt(inp.dataset.ingredientId),
+                current_quantity: newQty
+            });
+            
+            // Update "original" display
+            const ingItem = inp.closest('.ingredient-item');
+            const originalSpan = ingItem.querySelector('.ingredient-original');
+            
+            if (Math.abs(newQty - origQty) > 0.001) {
+                originalSpan.style.display = '';
+            } else if (originalSpan) {
+                originalSpan.style.display = 'none';
+            }
+        }
+    });
+    
+    // Update total weight display if present
+    updateTotalWeightDisplay();
+    
+    // Save to database
+    if (updates.length > 0) {
+        await updateQuantities(state.currentRecipeId, updates);
+    }
+    await updatePortions(state.currentRecipeId, newPortions);
 }
 
 // Handle total weight change - scale all ingredients proportionally
@@ -535,6 +670,15 @@ async function handleTotalWeightChange(e) {
     // Save to database
     if (updates.length > 0) {
         await updateQuantities(state.currentRecipeId, updates);
+    }
+    
+    // Update portions display
+    updatePortionsDisplay(scaleFactor);
+    
+    // Save updated portions
+    const portionsInput = document.getElementById('portionsInput');
+    if (portionsInput) {
+        await updatePortions(state.currentRecipeId, parseFloat(portionsInput.value));
     }
 }
 
@@ -616,10 +760,30 @@ async function handleQuantityChange(e) {
     // Update total weight display if present
     updateTotalWeightDisplay();
     
+    // Update portions display
+    updatePortionsDisplay(scaleFactor);
+    
     // Save to database
     if (updates.length > 0) {
         await updateQuantities(state.currentRecipeId, updates);
     }
+    
+    // Save updated portions
+    const portionsInput = document.getElementById('portionsInput');
+    if (portionsInput) {
+        await updatePortions(state.currentRecipeId, parseFloat(portionsInput.value));
+    }
+}
+
+// Update portions display after ingredient changes
+function updatePortionsDisplay(scaleFactor) {
+    const portionsInput = document.getElementById('portionsInput');
+    if (!portionsInput) return;
+    
+    const originalPortions = parseFloat(portionsInput.dataset.originalPortions) || 1;
+    const newPortions = Math.round(originalPortions * scaleFactor * 100) / 100;
+    
+    portionsInput.value = newPortions;
 }
 
 // Update total weight display after ingredient changes
@@ -706,6 +870,7 @@ async function showEditRecipeForm(id) {
     elements.recipeCategorySelect.value = recipe.category_id || '';
     elements.recipeCreationDate.value = recipe.creation_date || '';
     elements.recipePrepTime.value = recipe.preparation_time || '';
+    elements.recipePortions.value = recipe.original_portions || 1;
     
     // Photo
     if (recipe.photo_url) {
@@ -751,6 +916,7 @@ async function handleFormSubmit(e) {
         category_id: elements.recipeCategorySelect.value || null,
         creation_date: elements.recipeCreationDate.value,
         preparation_time: elements.recipePrepTime.value ? parseInt(elements.recipePrepTime.value) : null,
+        portions: elements.recipePortions.value ? parseFloat(elements.recipePortions.value) : 1,
         photo_url: elements.photoUrl.value || null,
         subsections: [],
         steps: []
