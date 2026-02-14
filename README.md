@@ -49,20 +49,41 @@ cd vibe-ricettario
 pip3 install -r requirements.txt
 ```
 
-### 3. Test manuale
+### 3. Crea la cartella per il database e le foto
+
+Il database e le foto vengono salvati **fuori dalla repository** per evitare sovrascritture accidentali con git pull.
 
 ```bash
+# Crea la cartella data
+mkdir -p /home/davide/data/uploads
+
+# Se hai un database esistente nella repo, spostalo
+mv /home/davide/GIT/vibe-ricettario/recipe_book.db /home/davide/data/
+
+# Se hai foto esistenti nella repo, spostale
+mv /home/davide/GIT/vibe-ricettario/uploads/* /home/davide/data/uploads/
+```
+
+### 4. Test manuale
+
+```bash
+# Imposta le variabili d'ambiente per il test
+export DATABASE_PATH=/home/davide/data/recipe_book.db
+export UPLOAD_FOLDER=/home/davide/data/uploads
 python3 app.py
 ```
 
 Apri un browser e vai a `http://<IP-RASPBERRY>:5000`
 
-### 4. Configura il servizio systemd (avvio automatico)
+### 5. Configura il servizio systemd (avvio automatico)
 
 ```bash
 # Crea la cartella per i log
 sudo mkdir -p /var/log/vibe-ricettario
 sudo chown davide:davide /var/log/vibe-ricettario
+
+# Crea la cartella per database e uploads (se non esiste)
+mkdir -p /home/davide/data/uploads
 
 # Copia il file di servizio
 sudo cp vibe-ricettario.service /etc/systemd/system/
@@ -80,7 +101,7 @@ sudo systemctl start vibe-ricettario
 sudo systemctl status vibe-ricettario
 ```
 
-### 5. Accedi all'applicazione
+### 6. Accedi all'applicazione
 
 Apri un browser su qualsiasi dispositivo nella stessa rete e vai a:
 ```
@@ -92,6 +113,26 @@ Per trovare l'IP del Raspberry Pi:
 hostname -I
 ```
 
+## Aggiornamento da Git
+
+Quando vuoi aggiornare il Raspberry Pi con le ultime modifiche:
+
+```bash
+cd /home/davide/GIT/vibe-ricettario
+
+# Scarica le ultime modifiche
+git pull
+
+# Se hai modificato il file di servizio, ricopialo
+sudo cp vibe-ricettario.service /etc/systemd/system/
+sudo systemctl daemon-reload
+
+# Riavvia il servizio
+sudo systemctl restart vibe-ricettario
+```
+
+**Nota:** Il database in `/home/davide/data/recipe_book.db` NON viene toccato dal git pull, quindi i tuoi dati sono al sicuro.
+
 ## Struttura del Progetto
 
 ```
@@ -100,8 +141,6 @@ vibe-ricettario/
 ├── database.py               # Modulo database SQLite
 ├── requirements.txt          # Dipendenze Python
 ├── vibe-ricettario.service   # File systemd per auto-start
-├── recipe_book.db            # Database SQLite (creato automaticamente)
-├── uploads/                  # Foto ricette
 ├── static/
 │   ├── css/
 │   │   └── style.css         # Stili (temi, responsive)
@@ -111,6 +150,10 @@ vibe-ricettario/
 └── templates/
     ├── index.html            # Pagina principale
     └── settings.html         # Pagina impostazioni
+
+/home/davide/data/
+├── recipe_book.db            # Database SQLite (FUORI dalla repo)
+└── uploads/                  # Foto ricette (FUORI dalla repo)
 ```
 
 ## Comandi Utili

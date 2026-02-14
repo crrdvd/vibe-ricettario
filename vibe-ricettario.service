@@ -1,5 +1,5 @@
 [Unit]
-Description=Recipe Book Web Application
+Description=Vibe Ricettario Web Application
 After=network.target
 
 [Service]
@@ -7,6 +7,8 @@ Type=simple
 User=davide
 WorkingDirectory=/home/davide/GIT/vibe-ricettario
 Environment=FLASK_ENV=production
+Environment=DATABASE_PATH=/home/davide/data/recipe_book.db
+Environment=UPLOAD_FOLDER=/home/davide/data/uploads
 ExecStart=/usr/bin/python3 /home/davide/GIT/vibe-ricettario/app.py
 Restart=always
 RestartSec=5

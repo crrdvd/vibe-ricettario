@@ -9,7 +9,11 @@ import os
 from datetime import datetime
 from contextlib import contextmanager
 
-DATABASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'recipe_book.db')
+# Database path: use DATABASE_PATH env variable if set, otherwise use local directory
+# Production (Raspberry Pi): DATABASE_PATH=/home/davide/data/recipe_book.db
+# Development (local): uses ./recipe_book.db in the project folder
+DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'recipe_book.db')
+DATABASE_PATH = os.environ.get('DATABASE_PATH', DEFAULT_DB_PATH)
 
 
 class Database:
