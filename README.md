@@ -14,7 +14,7 @@ Un'applicazione web per gestire le tue ricette preferite, ottimizzata per Raspbe
 - ✅ Salvataggio automatico delle ultime quantità usate
 - ✅ Visualizzazione quantità originali
 - ✅ Passaggi di preparazione numerati
-- ✅ Foto ricette (opzionale)
+- ✅ Foto ricette (opzionale, ridimensionate automaticamente a 1600px)
 - ✅ Categorie/tag per organizzare le ricette
 - ✅ Filtro e ricerca
 - ✅ Modalità visualizzazione/modifica
@@ -24,6 +24,7 @@ Un'applicazione web per gestire le tue ricette preferite, ottimizzata per Raspbe
 - ✅ Formato data personalizzabile
 - ✅ Gestione unità di misura
 - ✅ Import/Export backup JSON
+- ✅ Backup automatico giornaliero di database e foto
 - ✅ Design responsive (mobile + tablet landscape)
 - ✅ Interfaccia in italiano
 
@@ -44,6 +45,14 @@ cd vibe-ricettario
 ```
 
 ### 2. Installa le dipendenze
+
+Su Raspberry Pi OS / Debian conviene usare i pacchetti di sistema:
+
+```bash
+sudo apt install python3-flask python3-pil python3-waitress sqlite3 rsync
+```
+
+In alternativa, con pip:
 
 ```bash
 pip3 install -r requirements.txt
@@ -77,6 +86,9 @@ Apri un browser e vai a `http://<IP-RASPBERRY>:5000`
 
 ### 5. Configura il servizio systemd (avvio automatico)
 
+Il servizio usa [waitress](https://docs.pylonsproject.org/projects/waitress/) come server WSGI di produzione
+(`python3 app.py` avvia invece il server di sviluppo di Flask, adatto solo ai test).
+
 ```bash
 # Crea la cartella per i log
 sudo mkdir -p /var/log/vibe-ricettario
@@ -99,6 +111,11 @@ sudo systemctl start vibe-ricettario
 
 # Verifica lo stato
 sudo systemctl status vibe-ricettario
+
+# Backup automatico giornaliero (alle 03:30)
+sudo cp vibe-ricettario-backup.service vibe-ricettario-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now vibe-ricettario-backup.timer
 ```
 
 ### 6. Accedi all'applicazione
@@ -123,8 +140,8 @@ cd /home/davide/GIT/vibe-ricettario
 # Scarica le ultime modifiche
 git pull
 
-# Se hai modificato il file di servizio, ricopialo
-sudo cp vibe-ricettario.service /etc/systemd/system/
+# Se hai modificato i file di servizio, ricopiali
+sudo cp vibe-ricettario.service vibe-ricettario-backup.service vibe-ricettario-backup.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 
 # Riavvia il servizio
@@ -141,9 +158,13 @@ vibe-ricettario/
 ├── database.py               # Modulo database SQLite
 ├── requirements.txt          # Dipendenze Python
 ├── vibe-ricettario.service   # File systemd per auto-start
+├── backup.sh                 # Backup di database e foto
+├── vibe-ricettario-backup.service  # File systemd del backup
+├── vibe-ricettario-backup.timer    # Esegue il backup ogni notte
 ├── static/
 │   ├── css/
 │   │   └── style.css         # Stili (temi, responsive)
+│   ├── icons/                # Favicon e icona per la schermata Home
 │   └── js/
 │       ├── app.js            # JavaScript principale
 │       └── settings.js       # JavaScript pagina impostazioni
@@ -153,7 +174,8 @@ vibe-ricettario/
 
 /home/davide/data/
 ├── recipe_book.db            # Database SQLite (FUORI dalla repo)
-└── uploads/                  # Foto ricette (FUORI dalla repo)
+├── uploads/                  # Foto ricette (FUORI dalla repo)
+└── backups/                  # Backup giornalieri (YYYY-MM-DD/)
 ```
 
 ## Comandi Utili
@@ -172,8 +194,12 @@ tail -f /var/log/vibe-ricettario/error.log
 # Visualizza log systemd
 journalctl -u vibe-ricettario -f
 
-# Backup manuale del database
-cp /home/davide/GIT/vibe-ricettario/recipe_book.db ~/recipe_book_backup.db
+# Backup manuale (database e foto)
+/home/davide/GIT/vibe-ricettario/backup.sh
+
+# Stato del backup automatico
+systemctl list-timers vibe-ricettario-backup.timer
+journalctl -u vibe-ricettario-backup
 ```
 
 ## Backup e Ripristino
@@ -188,23 +214,32 @@ cp /home/davide/GIT/vibe-ricettario/recipe_book.db ~/recipe_book_backup.db
 2. Clicca "Importa"
 3. Seleziona il file JSON di backup
 
-### Backup manuale database
-```bash
-# Backup
-cp /home/davide/GIT/vibe-ricettario/recipe_book.db ~/recipe_book_backup_$(date +%Y%m%d).db
+### Backup automatico
+Ogni notte alle 03:30 `vibe-ricettario-backup.timer` esegue `backup.sh`, che salva in
+`/home/davide/data/backups/YYYY-MM-DD/` una copia consistente del database (`sqlite3 .backup`, verificata
+con `integrity_check`) e delle foto. Le foto non modificate sono hard link al backup precedente, quindi
+non occupano spazio in più. Vengono tenuti gli ultimi 30 backup (variabile `KEEP`).
 
-# Ripristino
-cp ~/recipe_book_backup_YYYYMMDD.db /home/davide/GIT/vibe-ricettario/recipe_book.db
-sudo systemctl restart vibe-ricettario
+I backup restano sulla stessa scheda SD: per proteggerti da un guasto della scheda copiali ogni tanto
+su un altro computer, ad esempio:
+
+```bash
+rsync -a davide@<IP-RASPBERRY>:data/backups/ ~/backup-ricettario/
+```
+
+### Ripristino
+```bash
+sudo systemctl stop vibe-ricettario
+cp /home/davide/data/backups/YYYY-MM-DD/recipe_book.db /home/davide/data/recipe_book.db
+rsync -a /home/davide/data/backups/YYYY-MM-DD/uploads/ /home/davide/data/uploads/
+sudo systemctl start vibe-ricettario
 ```
 
 ## Personalizzazione
 
 ### Cambiare porta
-Modifica `app.py`, ultima riga:
-```python
-app.run(host='0.0.0.0', port=8080, debug=False)
-```
+Modifica `--listen=0.0.0.0:5000` nella riga `ExecStart` di `vibe-ricettario.service`, poi ricopia il file
+in `/etc/systemd/system/` e riavvia il servizio. Per il server di sviluppo la porta è nell'ultima riga di `app.py`.
 
 ### Aggiungere HTTPS (opzionale)
 Per produzione con HTTPS, considera di usare Nginx come reverse proxy.
@@ -225,9 +260,10 @@ python3 app.py
 ```
 
 ### Database corrotto
+Ripristina l'ultimo backup (vedi [Ripristino](#ripristino)). In mancanza di backup:
 ```bash
 # Elimina e ricrea (perderai i dati!)
-rm /home/davide/GIT/vibe-ricettario/recipe_book.db
+rm /home/davide/data/recipe_book.db
 sudo systemctl restart vibe-ricettario
 ```
 

@@ -9,7 +9,8 @@ WorkingDirectory=/home/davide/GIT/vibe-ricettario
 Environment=FLASK_ENV=production
 Environment=DATABASE_PATH=/home/davide/data/recipe_book.db
 Environment=UPLOAD_FOLDER=/home/davide/data/uploads
-ExecStart=/usr/bin/python3 /home/davide/GIT/vibe-ricettario/app.py
+# Production WSGI server (python3 app.py runs the Flask development server)
+ExecStart=/usr/bin/python3 -m waitress --listen=0.0.0.0:5000 app:app
 Restart=always
 RestartSec=5
 

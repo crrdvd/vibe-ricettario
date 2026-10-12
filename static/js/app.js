@@ -268,14 +268,14 @@ function setupEventListeners() {
 function renderCategoryFilter() {
     elements.categoryFilter.innerHTML = '<option value="">Tutte le categorie</option>';
     state.categories.forEach(cat => {
-        elements.categoryFilter.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+        elements.categoryFilter.innerHTML += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
     });
 }
 
 function renderCategorySelect() {
     elements.recipeCategorySelect.innerHTML = '<option value="">Nessuna categoria</option>';
     state.categories.forEach(cat => {
-        elements.recipeCategorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+        elements.recipeCategorySelect.innerHTML += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
     });
 }
 
@@ -303,7 +303,7 @@ function renderRecipeList() {
         <div class="recipe-list-item ${recipe.id === state.currentRecipeId ? 'active' : ''}" 
              data-id="${recipe.id}">
             ${recipe.photo_url 
-                ? `<img src="${recipe.photo_url}" alt="" class="recipe-list-thumb">`
+                ? `<img src="${escapeHtml(recipe.photo_url)}" alt="" class="recipe-list-thumb">`
                 : `<div class="recipe-list-thumb-placeholder">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -314,7 +314,7 @@ function renderRecipeList() {
             }
             <div class="recipe-list-info">
                 <div class="recipe-list-name">${escapeHtml(recipe.name)}</div>
-                <div class="recipe-list-category">${recipe.category_name || 'Senza categoria'}</div>
+                <div class="recipe-list-category">${escapeHtml(recipe.category_name) || 'Senza categoria'}</div>
             </div>
         </div>
     `).join('');
@@ -498,7 +498,7 @@ function renderIngredients(recipe) {
                                    min="0"
                                    data-ingredient-id="${ing.id}"
                                    data-original-qty="${ing.original_quantity || 0}"
-                                   data-unit="${ing.unit || ''}"
+                                   data-unit="${escapeHtml(ing.unit || '')}"
                                    class="ingredient-qty-input">
                             <span class="ingredient-unit">${escapeHtml(ing.unit || '')}</span>
                         </div>
@@ -1196,9 +1196,13 @@ function formatDate(dateStr) {
 
 function escapeHtml(text) {
     if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    // Quotes too: the result is also used inside attribute values (value="...")
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function showToast(message, type = 'info') {

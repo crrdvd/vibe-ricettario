@@ -26,6 +26,8 @@ class Database:
         """Context manager for database connections"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        # SQLite ignores FOREIGN KEY clauses (ON DELETE CASCADE / SET NULL) unless enabled per connection
+        conn.execute('PRAGMA foreign_keys = ON')
         try:
             yield conn
             conn.commit()
@@ -126,7 +128,16 @@ class Database:
                     FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
                 )
             ''')
-            
+
+            # Cleanup: remove rows left orphaned while foreign keys were not enforced
+            cursor.execute('DELETE FROM ingredient_subsections WHERE recipe_id NOT IN (SELECT id FROM recipes)')
+            cursor.execute('DELETE FROM ingredients WHERE subsection_id NOT IN (SELECT id FROM ingredient_subsections)')
+            cursor.execute('DELETE FROM preparation_steps WHERE recipe_id NOT IN (SELECT id FROM recipes)')
+            cursor.execute('''
+                UPDATE recipes SET category_id = NULL
+                WHERE category_id IS NOT NULL AND category_id NOT IN (SELECT id FROM categories)
+            ''')
+
             # Insert default settings if not exist
             default_settings = {
                 'theme': 'light',
@@ -523,7 +534,15 @@ class Database:
                 # Import categories
                 for cat in data.get('categories', []):
                     cursor.execute('INSERT OR IGNORE INTO categories (name) VALUES (?)', (cat.get('name'),))
-                
+
+                # Category ids in the backup belong to the source database: map them by name
+                category_names = {cat.get('id'): cat.get('name') for cat in data.get('categories', [])}
+
+                def local_category_id(source_id):
+                    cursor.execute('SELECT id FROM categories WHERE name = ?', (category_names.get(source_id),))
+                    row = cursor.fetchone()
+                    return row['id'] if row else None
+
                 # Import units
                 for unit in data.get('units', []):
                     cursor.execute('INSERT OR IGNORE INTO units (name, abbreviation) VALUES (?, ?)',
@@ -538,20 +557,26 @@ class Database:
                     # Check if recipe with same name exists
                     cursor.execute('SELECT id FROM recipes WHERE name = ?', (recipe.get('name'),))
                     existing = cursor.fetchone()
-                    
+                    category_id = local_category_id(recipe.get('category_id'))
+                    original_portions = recipe.get('original_portions') or 1
+                    current_portions = recipe.get('current_portions') or original_portions
+
                     if existing:
                         # Update existing recipe
                         recipe_id = existing['id']
                         cursor.execute('''
                             UPDATE recipes SET description = ?, creation_date = ?, preparation_time = ?,
-                            photo_url = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP
+                            photo_url = ?, category_id = ?, original_portions = ?, current_portions = ?,
+                            updated_at = CURRENT_TIMESTAMP
                             WHERE id = ?
                         ''', (
                             recipe.get('description'),
                             recipe.get('creation_date'),
                             recipe.get('preparation_time'),
                             recipe.get('photo_url'),
-                            recipe.get('category_id'),
+                            category_id,
+                            original_portions,
+                            current_portions,
                             recipe_id
                         ))
                         cursor.execute('DELETE FROM ingredient_subsections WHERE recipe_id = ?', (recipe_id,))
@@ -559,15 +584,18 @@ class Database:
                     else:
                         # Insert new recipe
                         cursor.execute('''
-                            INSERT INTO recipes (name, description, creation_date, preparation_time, photo_url, category_id)
-                            VALUES (?, ?, ?, ?, ?, ?)
+                            INSERT INTO recipes (name, description, creation_date, preparation_time, photo_url, category_id,
+                                                 original_portions, current_portions)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         ''', (
                             recipe.get('name'),
                             recipe.get('description'),
                             recipe.get('creation_date'),
                             recipe.get('preparation_time'),
                             recipe.get('photo_url'),
-                            recipe.get('category_id')
+                            category_id,
+                            original_portions,
+                            current_portions
                         ))
                         recipe_id = cursor.lastrowid
                     

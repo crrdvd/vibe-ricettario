@@ -5,9 +5,11 @@ Flask application with SQLite database
 
 import os
 import json
+import sqlite3
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for
 from werkzeug.utils import secure_filename
+from PIL import Image, ImageOps
 from database import Database
 
 app = Flask(__name__)
@@ -24,12 +26,48 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_PHOTO_SIDE = 1600  # px, longest side of stored photos
 
 db = Database()
 
 
+@app.errorhandler(sqlite3.IntegrityError)
+def integrity_error(e):
+    """E.g. a category_id that does not exist (foreign keys are enforced)"""
+    return jsonify({'error': 'Dati non validi'}), 400
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def has_transparency(image):
+    if image.mode == 'P':
+        image = image.convert('RGBA') if 'transparency' in image.info else image.convert('RGB')
+    return image.mode in ('RGBA', 'LA') and image.getchannel('A').getextrema()[0] < 255
+
+
+def save_photo(file, path_without_ext):
+    """Save an uploaded photo scaled down to MAX_PHOTO_SIDE; returns the file extension used.
+
+    Phone photos are several MB: re-encoding keeps pages light, applies the EXIF
+    rotation and drops the EXIF metadata (GPS position included).
+    """
+    image = Image.open(file.stream)
+    # iPhone JPEGs open as multi-frame MPO (depth/gain maps): only GIF/WebP/APNG are real animations
+    if image.format in ('GIF', 'WEBP', 'PNG') and getattr(image, 'is_animated', False):
+        # Animated image: keep as uploaded
+        ext = image.format.lower()
+        file.stream.seek(0)
+        file.save(f'{path_without_ext}.{ext}')
+        return ext
+    image = ImageOps.exif_transpose(image)
+    image.thumbnail((MAX_PHOTO_SIDE, MAX_PHOTO_SIDE))
+    if has_transparency(image):
+        image.save(f'{path_without_ext}.png', optimize=True)
+        return 'png'
+    image.convert('RGB').save(f'{path_without_ext}.jpg', quality=85, optimize=True, progressive=True)
+    return 'jpg'
 
 
 # ============== PAGE ROUTES ==============
@@ -44,6 +82,12 @@ def index():
 def settings_page():
     """Settings page"""
     return render_template('settings.html')
+
+
+@app.route('/favicon.ico')
+def favicon():
+    """Browsers request the favicon at the root even without a <link> tag"""
+    return send_from_directory(os.path.join(app.static_folder, 'icons'), 'favicon.ico')
 
 
 # ============== API ROUTES - RECIPES ==============
@@ -124,11 +168,14 @@ def upload_photo():
         return jsonify({'error': 'Nessun file selezionato'}), 400
     
     if file and allowed_file(file.filename):
-        # Generate unique filename
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{secure_filename(file.filename)}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
+        # Generate unique filename (the extension depends on how the photo is re-encoded)
+        stem = os.path.splitext(secure_filename(file.filename))[0] or 'foto'
+        basename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{stem}"
+        try:
+            ext = save_photo(file, os.path.join(app.config['UPLOAD_FOLDER'], basename))
+        except (OSError, Image.DecompressionBombError):
+            return jsonify({'error': 'Immagine non valida'}), 400
+        filename = f'{basename}.{ext}'
         return jsonify({'filename': filename, 'url': f'/uploads/{filename}'})
     
     return jsonify({'error': 'Tipo di file non consentito'}), 400

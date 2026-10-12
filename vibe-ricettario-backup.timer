@@ -1,0 +1,11 @@
+[Unit]
+Description=Vibe Ricettario daily backup
+
+[Timer]
+OnCalendar=*-*-* 03:30
+RandomizedDelaySec=10min
+# Run at boot if the Pi was off at 03:30
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,7 @@
+[Unit]
+Description=Vibe Ricettario daily backup (database and photos)
+
+[Service]
+Type=oneshot
+User=davide
+ExecStart=/home/davide/GIT/vibe-ricettario/backup.sh
